@@ -1,0 +1,26 @@
+#if ( $entity.isJoinEntity() )
+    #cancel("No repository for join entity")
+#end
+
+#checkId($entity)
+#parse("include/init_var_entity.vm")
+#parse("include/java_header.vm")
+package ${target.javaPackageFromFolder(${SRC})};
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ${jpaEntityClass}Dao{
+
+    void save($jpaEntityClass $entity.name);
+
+    Optional<$jpaEntityClass>findById(Long id);
+
+    List<$jpaEntityClass>findAll();
+
+    //obs: entity.name está igual ao nome da classe
+    void update($jpaEntityClass $entity.name);
+
+    void delete($jpaEntityClass $entity.name);
+
+}

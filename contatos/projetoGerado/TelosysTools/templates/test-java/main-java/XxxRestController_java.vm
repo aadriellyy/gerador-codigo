@@ -1,0 +1,6 @@
+#if ( $entity.isJoinEntity() )#cancel("No REST class for join entity")#end #checkId($entity) #using("REST_API_ROOT") #parse("include/init_var_entity.vm")  #parse("include/java_header.vm") #parse("include/controllerVerify.vm")
+#if($entity.hasLinks())
+    #controllerFk($entity)
+#else
+    #controllerSimples($entity)
+#end

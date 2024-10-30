@@ -1,0 +1,65 @@
+
+#macro(construtor$entity)    #mapeiaAtributosConstrutor($entity)
+
+    public ${jpaEntityClass}($fn.argumentsListWithWrapperType($attributeConstrutor), $linkType $linkName) {
+        super();
+        #foreach( $field in $entity.attributes ) #if($field.isFK()) #foreach($link in $entity.links)
+
+        this.$link.fieldName = $link.fieldName;
+
+        #end #else
+
+        this.$field.name = $field.name; #end #end
+    }
+
+    public ${jpaEntityClass}($fn.argumentsListWithWrapperType($attributeNonKey), $linkType $linkName) {
+        super();
+        #foreach( $field in $entity.nonKeyAttributes ) #if($field.isFK() == false) #foreach($link in $entity.links)
+
+        this.$link.fieldName = $link.fieldName;
+
+        #end
+
+        this.$field.name = $field.name; #end #end
+
+#end
+
+
+
+
+#macro(mapeiaAtributosConstrutor $entity)
+    #set($attributeConstrutor = [] )
+    #set($attributeNonKey = [])
+    #foreach($attribute in $entity.attributes)
+        #if($attribute.isFK() == false)
+            #set ($ignored = $attributeConstrutor.add($attribute) )#end #end
+    #foreach($attribute in $entity.nonKeyAttributes)
+        #if($attribute.isFK() == false)
+            #set ($ignored = $attributeNonKey.add($attribute) )
+        #end #end
+#end
+
+
+#macro(atributosTransform$entity)#foreach($attribute in $entity.attributes)#if($attribute.isFK())#else this.${attribute.name},#end #end #end
+
+
+#macro(atributosToString$attributes)#mapeiaAtributosConstrutor($entity)#foreach( $attribute in $attributeConstrutor )#if($foreach.last) ${attribute.name}=" + $attribute.name + "]";
+#else ${attribute.name}=" + ${attribute.name} + ", #end #end #end
+
+
+#macro(transform$entity)
+
+    public $entity.name transform($linkType $linkName){
+        $entity.name obj$entity.name = new ${entity.name}( #atributosTransform($entity) $linkName);
+        return obj${entity.name};
+    }
+
+#end
+
+#macro(argumento$entity)
+    #foreach($link in $entity.links)
+        #set($linkName = $link.fieldName)
+        #set($linkType = $link.fieldType)
+    #end
+#end
+

@@ -1,0 +1,10 @@
+@DbTable(pessoa_fisica)
+@DbSchema(public)
+PessoaFisica {
+  // attributes
+  idPessoa : long { @Id @DbName(id_pessoa) @DbType(int8) @NotNull @NotEmpty };
+  nomeCompleto : string { @DbName(nome_completo) @DbType("varchar(120)") @NotNull @NotEmpty @Size(120) @MaxLen(120) };
+  dtNascimento : date { @DbName(dt_nascimento) @DbType(date) @NotNull @NotEmpty };
+  nrCpf : string { @DbName(nr_cpf) @DbType("varchar(11)") @NotNull @NotEmpty @Size(11) @MaxLen(11) };
+  // links
+}

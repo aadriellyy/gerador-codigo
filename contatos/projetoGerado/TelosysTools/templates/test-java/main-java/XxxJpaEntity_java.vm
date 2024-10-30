@@ -1,0 +1,199 @@
+#if ( $entity.isJoinEntity() ) #cancel("No JPA class for join entity") #end #checkId($entity) #parse("include/init_var_entity.vm") #parse("include/java_header.vm") #abstract($entity) #relacionamento($entity) #parse("include/constructorVerify.vm")
+
+package ${target.javaPackageFromFolder(${SRC})};
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Objects;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+import jakarta.persistence.*;
+
+import ${target.javaPackageFromFolder(${SRC})}.rest.${requestClass};
+
+$jpa.entityAnnotations(0, $entity)
+@SequenceGenerator(name = "sq${entity.name}", sequenceName = "SQ_${entity.databaseTable.toUpperCase()}", allocationSize = 1)       #if($abstract == true)
+
+public abstract class ${entity.name} {
+#else
+
+public class ${entity.name} {
+    #end
+
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sq${entity.name}")
+
+#foreach( $attribute in $entity.Attributes ) #if($attribute.isFK() == false) #if($attribute.type == 'long')
+
+$jpa.fieldAnnotations(4, $attribute)
+    private Long $attribute.name#if($attribute.hasInitialValue())= ${attribute.initialValue} #end; #else
+
+$jpa.fieldAnnotations(4, $attribute)
+    private $attribute.type $attribute.name#if($attribute.hasInitialValue())= ${attribute.initialValue} #end;
+
+#end
+#end #end
+
+#if ( $entity.hasLinks() ) #foreach( $link in $entity.links )
+
+$jpa.linkAnnotations(4, $link)
+    private ${link.formattedFieldType(10)} $link.fieldName;
+
+#end
+#end #set($size = $mapa.size())
+
+#if($size>0)
+#foreach($index in [0..$size]) #set($relacao = $index + 1)
+    #if($index == $size || $relacao >= $size) #break #else
+
+ #if($mapa.get($relacao).replaceAll(" ", "") == "ManyToOne")
+
+    @OneToMany(mappedBy = "$mappedBy")
+    private List<$mapa.get($index)> obj$mapa.get($index) = new ArrayList<>(); #else #if($mapa.get($relacao).replaceAll(" ", "")  == "OneToMany")
+
+    @ManyToOne
+    private $mapa.get($index) obj$mapa.get($index); #else #if($mapa.get($relacao).replaceAll(" ", "")  == "OneToOne")
+
+    @OneToOne(mappedBy = "$mappedBy")
+    private $mapa.get($index) obj$mapa.get($index);
+
+#end #end #end #end    #end  #end
+
+    public ${entity.name}() {
+    }
+
+#mapeiaAtributosConstrutor($entity)
+
+    public ${jpaEntityClass}($fn.argumentsListWithWrapperType($attributeConstrutor)) {
+        super();
+        #foreach( $field in $attributeConstrutor )
+
+        this.$field.name = $field.name;
+
+        #end
+    }
+
+#if($entity.hasLinks()) #argumento($entity)
+        #construtor($entity)
+#else
+
+    public ${jpaEntityClass}($fn.argumentsListWithWrapperType($entity.nonKeyAttributes)) {
+        super();
+        #foreach( $field in $entity.nonKeyAttributes )
+
+        this.$field.name = $field.name;
+        #end #end
+    }
+
+#foreach( $attribute in $entity.keyAttributes )
+#if($attribute.type == 'long')
+
+    public void ${attribute.setter}(Long $attribute.name) {
+        this.$attribute.name = $attribute.name;
+    }
+    public Long ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+
+#else
+
+    public void ${attribute.setter}($attribute.type $attribute.name) {
+        this.$attribute.name = $attribute.name;
+    }
+    public $attribute.type ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+
+#end
+#end
+#foreach( $attribute in $entity.nonKeyAttributes ) #if($attribute.isFK() == false)
+
+#if($attribute.type == 'long')
+
+    public void ${attribute.setter}(Long $attribute.name) {
+        this.$attribute.name = $attribute.name;
+    }
+    public Long ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+
+#else
+
+    public void ${attribute.setter}($attribute.type $attribute.name) {
+        this.$attribute.name = $attribute.name;
+    }
+    public $attribute.type ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+
+#end #else #end
+
+#end
+
+#if($size>0)
+    #foreach($index in [0..$size]) #set($relacao = $index + 1)
+        #if($index == $size || $relacao >= $size) #break #else
+            #if($mapa.get($relacao).replaceAll(" ", "") == "ManyToOne")
+
+    public void add$mapa.get($index)(${mapa.get($index)} object){
+        obj${mapa.get($index)}.add(object);
+    }
+
+    @JsonBackReference
+    public List<${mapa.get($index)}> get${mapa.get($index)}(){
+        return this.obj${mapa.get($index)};
+    }
+
+        #else #if($mapa.get($relacao).replaceAll(" ", "")  == "OneToMany" || $mapa.get($relacao).replaceAll(" ", "")  == "OneToOne")
+
+    public void set${mapa.get($index)}(${mapa.get($index)} object){
+        this.obj${mapa.get($index)} = object;
+    }
+
+    @JsonBackReference
+    public ${mapa.get($index)} get${mapa.get($index)}(){
+        return this.obj${mapa.get($index)};
+    }
+
+#end #end #end #end    #end #set($mapa = [])
+
+#foreach( $link in $entity.selectedLinks )
+    public ${link.formattedFieldType(0)} ${link.getter}() {
+        return this.${link.formattedFieldName(0)};
+    }
+
+#end
+
+    public void transform($requestClass request){
+    #foreach($attribute in $entity.nonKeyAttributes) #if($attribute.isFK() == false)
+        this.$attribute.name = request.${attribute.getter}();
+    #end #end
+    }
+
+    @Override
+    public int hashCode(){ return Objects.hash($fn.argumentsList($attributeConstrutor)); }
+
+    @Override
+    public boolean equals (Object obj){
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        $jpaEntityClass other = ($jpaEntityClass) obj;
+
+        return
+        #foreach ( $attribute in $attributeConstrutor )  #if($foreach.last)
+        Objects.equals(this.$attribute.name, other.$attribute.name);#else
+        Objects.equals(this.$attribute.name, other.$attribute.name) &&#end#end
+
+    }
+
+    public String logString() {
+        return ("Adicione uma implmenentação adequada.");
+    }
+
+
+}

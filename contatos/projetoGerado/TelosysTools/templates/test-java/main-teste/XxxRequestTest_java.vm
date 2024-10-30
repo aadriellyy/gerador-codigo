@@ -1,0 +1,316 @@
+#if ( $entity.isJoinEntity() ) #cancel("No JPA class for join entity") #end #checkId($entity) #parse("include/init_var_entity.vm") #parse("include/java_header.vm")
+#parse("include/valores_iniciais.vm")
+#set( $collectionName = $entity.tagValue("CollectionName", $fn.toLowerCase($entity.name) ) )
+#set( $uriPath = "${REST_API_ROOT}/${collectionName}" )
+
+package ${target.javaPackageFromFolder(${TEST_SRC})};
+/*
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.LocalDate;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import ${ROOT_PKG}.${entity.name};
+import ${ROOT_PKG}.${serviceClass};
+import ${ROOT_PKG}.rest.${controllerClass};
+
+@WebMvcTest(${controllerClass}.class)
+public class ${requestClass}Test {
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private ${serviceClass} repository;
+
+    @Test
+    void findAllTest() throws Exception {
+
+        List<${jpaEntityClass}> list${entity.name} = new ArrayList<>();
+
+        #defineReferencia($entity)
+
+        #definirValores($entity) #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($attribute.type == 'long')
+
+        Long $attribute.name = (long) $valores.get($index);
+
+        #elseif($attribute.isDateType())
+
+        LocalDate $attribute.name = LocalDate.of($valores.get($index));
+
+        #else
+
+        $attribute.type $attribute.name = $valores.get($index);
+
+        #end #end
+        #if($entity.hasLinks()) #atributosEntityLink($entity)
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass(#foreach($att in $atributos)#if($foreach.last) $att #else $att,#end
+    #end);
+
+        #else
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass($fn.argumentsList($entity.attributes));
+    #end
+
+        list${entity.name}.add(obj$entity.name);
+
+
+        when(repository.findAll()).thenReturn(list${entity.name});
+
+        this.mockMvc.perform(get("/${uriPath}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value($keyAttribute));
+    }
+
+    @Test
+    void findByIdTest() throws Exception {
+
+    #defineReferencia($entity)
+
+#foreach($attribute in $entity.attributes) #set($index = $foreach.index)     #if($attribute.type == 'long')
+
+        Long $attribute.name = (long) $valores.get($index);
+
+    #elseif($attribute.isDateType())
+
+        LocalDate $attribute.name = LocalDate.of($valores.get($index));
+
+    #else
+
+        $attribute.type $attribute.name = $valores.get($index);
+
+#end #end
+
+    #if($entity.hasLinks()) #atributosEntityLink($entity)
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass(#foreach($att in $atributos)#if($foreach.last) $att #else $att,#end
+    #end);
+
+    #else
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass($fn.argumentsList($entity.attributes));
+    #end
+
+        when(repository.findById($keyAttribute)).thenReturn(Optional.of(obj$entity.name));
+        this.mockMvc.perform(get("${uriPath}/$keyAttribute"))
+            .andExpect(status().isOk())
+        #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($foreach.last && $attribute.isDateType()) )
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"));
+
+            #elseif($foreach.last)
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)}));
+
+        #elseif($attribute.isDateType())
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"))
+
+        #else
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)})) #end
+
+        #end
+
+}
+
+    @Test
+    void saveTest() throws Exception {
+
+        #defineReferencia($entity)
+
+        #foreach($attribute in $entity.attributes) #set($index = $foreach.index)  #if($attribute.type == 'long')
+
+        Long $attribute.name = (long) $valores.get($index);
+
+        #elseif($attribute.isDateType())
+
+        LocalDate $attribute.name = LocalDate.of($valores.get($index));
+
+        #else
+
+        $attribute.type $attribute.name = $valores.get($index);
+
+        #end #end
+
+    #if($entity.hasLinks()) #atributosEntityLink($entity)
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass(#foreach($att in $atributos)#if($foreach.last) $att #else $att,#end
+    #end);
+
+    #else
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass($fn.argumentsList($entity.attributes));
+    #end
+
+        String obj${entity.name}Json = "{ defina o corpo do objeto em formato Json}";
+
+        this.mockMvc.perform(post("${uriPath}").contentType(MediaType.APPLICATION_JSON).content(obj${entity.name}Json))
+            .andExpect(status().isOk())
+
+            #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($foreach.last && $attribute.isDateType()) )
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"));
+
+            #elseif($foreach.last)
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)}));
+
+            #elseif($attribute.isDateType())
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"))
+
+            #else
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)})) #end
+
+            #end
+    }
+
+    @Test
+    void updateTest() throws Exception {
+
+    #defineReferencia($entity)
+
+    #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($attribute.type == 'long')
+
+        Long $attribute.name = (long) $valores.get($index);
+
+        #elseif($attribute.isDateType())
+
+        LocalDate $attribute.name = LocalDate.of($valores.get($index));
+
+    #else
+
+        $attribute.type $attribute.name = $valores.get($index);
+
+    #end #end
+
+    #if($entity.hasLinks()) #atributosEntityLink($entity)
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass(#foreach($att in $atributos)#if($foreach.last) $att #else $att,#end
+    #end);
+    #else
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass($fn.argumentsList($entity.attributes));
+    #end
+
+        String obj${entity.name}Json = "{ defina o corpo do objeto em formato Json}";
+
+        when(repository.findById($keyAttribute)).thenReturn(Optional.of(obj$entity.name));
+
+        this.mockMvc.perform(put("${uriPath}").contentType(MediaType.APPLICATION_JSON).content(obj${entity.name}Json))
+            .andExpect(status().isOk())
+
+            #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($foreach.last && $attribute.isDateType()) )
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"));
+
+            #elseif($foreach.last)
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)}));
+
+            #elseif($attribute.isDateType())
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"))
+
+            #else
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)})) #end
+
+            #end
+    }
+
+    @Test
+    void deleteTest() throws Exception {
+
+    #defineReferencia($entity)
+
+    #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($attribute.type == 'long')
+
+        Long $attribute.name = (long) $valores.get($index);
+
+    #elseif($attribute.isDateType())
+
+        LocalDate $attribute.name = LocalDate.of($valores.get($index));
+
+    #else
+
+        $attribute.type $attribute.name = $valores.get($index);
+
+    #end #end
+
+    #if($entity.hasLinks()) #atributosEntityLink($entity)
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass(#foreach($att in $atributos)#if($foreach.last) $att #else $att,#end
+    #end);
+
+    #else
+
+        $jpaEntityClass obj$entity.name = new $jpaEntityClass($fn.argumentsList($entity.attributes));
+    #end
+
+        when(repository.findById($keyAttribute)).thenReturn(Optional.of(obj$entity.name));
+
+        this.mockMvc.perform(delete("${uriPath}/$keyAttribute"))
+            .andExpect(status().isOk())
+
+            #foreach($attribute in $entity.attributes) #set($index = $foreach.index) #if($foreach.last && $attribute.isDateType()) )
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"));
+
+            #elseif($foreach.last)
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)}));
+
+            #elseif($attribute.isDateType())
+
+            .andExpect(jsonPath("$.${attribute.name}").value("${valores.get($index).replaceAll(',', '-')}"))
+
+            #else
+
+            .andExpect(jsonPath("$.${attribute.name}").value(${valores.get($index)})) #end
+
+            #end
+    }
+
+
+}
+
+##macro(json$entity)
+    ##set($jsonString = "")
+    ##foreach($attribute in $entity.attributes)#foreach($valor in $valores)
+        ##if($foreach.last == false)
+            ##set($jsonString = $jsonString + '\"')
+            ##set($jsonString = $jsonString + ${attribute.name} )
+            ##set($jsonString = $jsonString + '\": \"' )
+            ##set($jsonString = $jsonString + $valor )
+            ##set($jsonString = $jsonString + '\",' )
+        ##else
+            ##set($jsonString = $jsonString + '\"')
+            ##set($jsonString = $jsonString + ${attribute.name} )
+            ##set($jsonString = $jsonString + '\": \"' )
+            ##set($jsonString = $jsonString + $valor )
+            ##set($jsonString = $jsonString + '\"}"' )
+        ##end
+    ##end ##end
+##end
+
+
+*/

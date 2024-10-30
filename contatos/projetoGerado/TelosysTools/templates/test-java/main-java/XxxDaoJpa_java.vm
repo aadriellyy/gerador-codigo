@@ -1,0 +1,108 @@
+#if ( $entity.isJoinEntity() )
+    #cancel("No repository for join entity")
+#end
+
+#checkId($entity)
+#parse("include/init_var_entity.vm")
+#parse("include/java_header.vm")
+package ${target.javaPackageFromFolder(${SRC})};
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceException;
+import jakarta.persistence.TypedQuery;
+
+@Repository
+public class ${entity.name}DaoJpa implements ${daoClass}{
+
+    private EntityManager em;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(${entity.name}DaoJpa.class);
+
+    public ${entity.name}DaoJpa(EntityManager em){
+        super();
+        this.em = em;
+    }
+
+    @Override
+    public void save(${jpaEntityClass} obj${entity.name}) {
+        try{
+            LOGGER.info("Tentando gravar ${entity.name}: {}", obj${entity.name}.logString());
+            this.em.persist(obj${entity.name});
+            LOGGER.info("${entity.name} gravado com sucesso: {}", obj${entity.name}.logString());
+        }catch (Exception e){
+            LOGGER.error("Erro ao gravar ${entity.name} {}", e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Optional<${jpaEntityClass}> findById(Long id) {
+        String jpql = "select entidade from ${jpaEntityClass} entidade where entidade.id=:id_entidade";
+
+        TypedQuery<${jpaEntityClass}>typedObjectQuery = em.createQuery(jpql, ${jpaEntityClass}.class);
+        typedObjectQuery.setParameter("id_entidade", id);
+
+        try {
+            LOGGER.info("Recuperando ${entity.name} com ID: {}", id);
+            ${jpaEntityClass} obj${entity.name} =  typedObjectQuery.getSingleResult();
+            LOGGER.info("${entity.name} recuperado com sucesso: {}", obj${entity.name}.logString());
+            return Optional.of(obj${entity.name});
+        }
+            catch(PersistenceException e) {
+            LOGGER.error("Não foi possível recuperar o '${entity.name}' {} =>{}", id, e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<${jpaEntityClass}> findAll() {
+        String jpql = "select entidade from ${jpaEntityClass} entidade";
+
+        TypedQuery<${jpaEntityClass}>typedObjectQuery = em.createQuery(jpql, ${jpaEntityClass}.class);
+
+        try {
+            LOGGER.info("Recuperando a lista de ${entity.name}.");
+            List<${jpaEntityClass}> list = typedObjectQuery.getResultList();
+            LOGGER.info("Tamanho da lista recuperada: {}", list.size());
+            return list;
+        }
+        catch(PersistenceException e) {
+            LOGGER.error("Não foi possível recuperar a lista de '${entity.name}' {}.",e.getMessage(), e);
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void update(${jpaEntityClass} obj${entity.name}) {
+        try {
+            LOGGER.info("Tentando atualizar ${entity.name}: {}", obj${entity.name}.logString());
+            em.merge(obj${entity.name});
+            LOGGER.info("${entity.name} atualizado com sucesso: {}", obj${entity.name}.logString());
+        }catch(PersistenceException pe) {
+            LOGGER.error("Não foi possível atualizar o '${entity.name}' {} => {}.", obj${entity.name}, pe.getMessage(), pe);
+        }
+    }
+
+    @Override
+    public void delete(${jpaEntityClass} obj${entity.name}) {
+        try{
+            LOGGER.info("Tentando excluir ${entity.name}: {}", obj${entity.name}.logString());
+            ${jpaEntityClass} objectFinal = em.find(${jpaEntityClass}.class, #foreach($attribute in $entity.keyAttributes) obj${entity.name}.${attribute.getter}() #end);
+
+            if (objectFinal != null) {
+                em.remove(objectFinal);
+                LOGGER.info("${jpaEntityClass} excluída com sucesso: {}", obj${entity.name}.logString());
+            }
+        } catch (Exception e){
+            LOGGER.error("Não foi possível excluir '${entity.name}' {} =>{}", obj${entity.name}.logString(), e.getMessage(), e);
+        }
+    }
+
+}

@@ -1,0 +1,102 @@
+#if ( $entity.isJoinEntity() ) #cancel("No SERVICE class for join entity")#end #checkId($entity) #parse("include/init_var_entity.vm") #parse("include/java_header.vm")
+
+package ${target.javaPackageFromFolder(${SRC})};
+
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+#foreach( $import in $java.imports($entity.keyAttributes) )
+import $import;
+#end
+
+@Service
+public class ${serviceClass} {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(${serviceClass}.class);
+
+    private ${jpaEntityClass}Dao repository;
+
+    public ${serviceClass}(${daoClass} repository) {
+
+        super();
+        this.repository = repository;
+    }
+
+    @Transactional
+    public List<${jpaEntityClass}> findAll() {
+        try{
+            LOGGER.info("Buscando todos ${entity.name} (service).");
+            List<${jpaEntityClass}> list = this.repository.findAll();
+            LOGGER.info("Tamanho da lista recuperada (service): {}", list.size());
+            return list;
+        }catch (Exception e){
+            LOGGER.error("Erro ao buscar todos ${entity.name} (service).", e);
+            throw e;
+        }
+    }
+
+    @Transactional
+    public Optional<${jpaEntityClass}> findById(Long id) {
+        try{
+            LOGGER.info("Buscando ${entity.name} com ID (service): {}", id);
+            Optional<${jpaEntityClass}> ${entity.name} = this.repository.findById(id);
+                if (${entity.name}.isPresent()) {
+                    LOGGER.info("${entity.name} encontrado (service): {}", ${entity.name} .get().logString());
+                } else {
+                    LOGGER.warn("${entity.name}  com ID {} não encontrado (service)", id);
+                }
+            return ${entity.name} ;
+        } catch (Exception e){
+            LOGGER.error("Erro ao buscar ${entity.name} com ID (service): {}", id, e);
+            throw e;
+        }
+
+    }
+
+    @Transactional
+    public void save(${jpaEntityClass} ${entity.name}) {
+        try {
+            LOGGER.info("Criando o ${entity.name} (service): {}", ${entity.name}.logString());
+            this.repository.save(${entity.name});
+            LOGGER.info("${entity.name} criado com sucesso (service): {}", ${entity.name}.logString());
+        } catch (Exception e) {
+            LOGGER.error("Erro ao criar ${entity.name} (service): {}", ${entity.name}.logString(), e);
+            throw e;
+        }
+        this.repository.save(${entity.name});
+    }
+
+    @Transactional
+    public void update(${jpaEntityClass} ${entity.name}) {
+        try {
+            LOGGER.info("Atualizando ${entity.name} (service): {}", ${entity.name}.logString());
+            this.repository.update(${entity.name});
+            LOGGER.info("${entity.name} atualizado com sucesso (service): {}", ${entity.name}.logString());
+        } catch (Exception e) {
+            LOGGER.error("Erro ao atualizar ${entity.name} (service): {}", ${entity.name}.logString(), e);
+            throw e;
+        }
+        this.repository.update(${entity.name});
+    }
+
+    @Transactional
+    public void delete(${jpaEntityClass} ${entity.name}) {
+        try {
+            LOGGER.info("Deletando ${entity.name} (service): {}", ${entity.name}.logString());
+            this.repository.delete(${entity.name});
+            LOGGER.info("${entity.name} deletado com sucesso (service): {}", ${entity.name}.logString());
+        } catch (Exception e) {
+            LOGGER.error("Erro ao deletar ${entity.name} (service): {}", ${entity.name}.logString(), e);
+            throw e;
+        }
+        this.repository.delete(${entity.name});
+    }
+
+
+
+}

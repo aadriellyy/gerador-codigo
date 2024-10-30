@@ -1,0 +1,10 @@
+@DbTable(email)
+@DbSchema(public)
+Email {
+  // attributes
+  idEmail : long { @Id @DbName(id_email) @DbType(int8) @NotNull @NotEmpty };
+  cxEmail : string { @DbName(cx_email) @DbType("varchar(120)") @NotNull @NotEmpty @Size(120) @MaxLen(120) @Unique };
+  fkidPessoa : long { @DbName(fkid_pessoa) @DbType(int8) @NotNull @NotEmpty @FK(email_fkid_pessoa_fkey, PessoaFisica.idPessoa) @Unique };
+  // links
+  pessoafisica : PessoaFisica { @LinkByFK(email_fkid_pessoa_fkey) };
+}

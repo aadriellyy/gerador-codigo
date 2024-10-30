@@ -1,0 +1,155 @@
+#if ( $entity.isJoinEntity() ) #cancel("No REQUEST class for join entity") #end #checkId($entity) #parse("include/init_var_entity.vm") #parse("include/java_header.vm") #parse("include/constructorVerify.vm")
+package ${target.javaPackageFromFolder(${SRC})};
+
+#foreach( $import in $java.imports($entity.keyAttributes) )
+import $import
+#end
+
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Objects;
+#foreach($attribute in $entity.attributes) #if($attribute.type == "LocalDate")
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+#end #end
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import ${ROOT_PKG}.${jpaEntityClass};
+
+#if($entity.hasLinks()) #url($entity)
+
+import ${ROOT_PKG}.${typeLink};
+
+#end
+
+public class ${requestClass} {
+
+#foreach( $attribute in $entity.Attributes ) #if($attribute.isFK()) #else
+    #if($attribute.type == 'long' && $attribute.isKeyElement())
+
+    @NotNull(groups = {ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está invalido.")
+    @JsonProperty("${attribute.name}")
+    private Long $attribute.name;
+
+    #elseif($attribute.type == 'long')
+
+    @NotNull(groups = {ValidOnCreation.class, ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está invalido.")
+    @JsonProperty("${attribute.name}")
+    private Long $attribute.name;
+
+    #elseif($attribute.type == 'LocalDate')
+
+    @NotNull(groups = {ValidOnCreation.class, ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está invalido.")
+    @JsonProperty("${attribute.name}")
+    @JsonFormat(pattern="dd/MM/yyyy")
+    private $attribute.type $attribute.name;
+
+    #elseif($entity.hasLinks() == false)
+    @NotNull(groups = {ValidOnCreation.class, ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está invalido.")
+    @NotBlank(groups = {ValidOnCreation.class, ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está em branco")
+    @JsonProperty("${attribute.name}")
+    private $attribute.type $attribute.name;
+
+    #else
+    @NotNull(groups = {ValidOnCreation.class, ValidOnUpdate.class}, message = "${attribute.name} de ${entity.name} está invalido.")
+    @JsonProperty("${attribute.name}")
+    private $attribute.type $attribute.name;
+
+    #end
+#end
+#end
+
+#if($entity.hasLinks()) #argumento($entity)
+    #transform($entity)
+
+#else
+
+    public $jpaEntityClass transform(#foreach($attribute in ${entity.nonKeyAttributes}) #if($foreach.hasNext)
+${attribute.type} ${attribute.name}, #else ${attribute.type} ${attribute.name} #end #end){
+        $jpaEntityClass object = new $jpaEntityClass(#foreach($attribute in ${entity.nonKeyAttributes}) #if($foreach.hasNext)
+    ${attribute.name}, #else ${attribute.name} #end #end);
+        return object;
+    }
+
+#end
+
+#foreach( $attribute in $entity.Attributes ) #if($attribute.isFK() == false)
+    #if($attribute.type == 'long')
+
+    public void ${attribute.setter}( Long $attribute.name ) {
+        this.$attribute.name = $attribute.name ;
+    }
+    public Long ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+    #else
+
+    public void ${attribute.setter}( $attribute.type $attribute.name ) {
+        this.$attribute.name = $attribute.name ;
+    }
+    public $attribute.type ${attribute.getter}() {
+        return this.$attribute.name;
+    }
+
+    #end #end #end
+
+    @Override
+    public String toString() {
+        return "$dtoClass [#atributosToString($entity)
+    }
+
+#mapeiaAtributosEqualsHash($entity)
+
+    @Override
+    public int hashCode(){ return Objects.hash($fn.argumentsList($attributeEqualsHash)); }
+
+    @Override
+    public boolean equals (Object obj){
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        $requestClass other = ($requestClass) obj;
+
+        return
+        #foreach ( $attribute in $attributeEqualsHash ) #if($foreach.last)
+        Objects.equals(this.$attribute.name, other.$attribute.name);#else
+        Objects.equals(this.$attribute.name, other.$attribute.name) &&#end #end
+    }
+
+    public Set< String >isValidOnStage (Class<?> stage) {
+        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+        Validator validator = factory.getValidator();
+
+
+        Set< ConstraintViolation< ${requestClass} >>violacoes = validator.validate(this, stage);
+
+        if (violacoes.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Set< String > violations = new HashSet<>() ;
+        violacoes.forEach((violacao)->{
+            violations.add(violacao.getMessageTemplate());
+        });
+
+        return violations;
+    }
+
+    public String logString() {
+        return ("Adicione uma implmenentação adequada.");
+    }
+
+}

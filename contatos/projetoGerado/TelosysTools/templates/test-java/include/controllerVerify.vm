@@ -1,0 +1,311 @@
+#checkId($entity)
+#parse("include/init_var_entity.vm")
+
+##caso a entidade não possua chaves estrangeiras
+#macro(controllerSimples$entity)
+package ${target.javaPackageFromFolder(${SRC})};
+
+#foreach( $import in $java.imports($entity.keyAttributes) )
+import $import;
+#end
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import ${ROOT_PKG}.${jpaEntityClass};
+import ${ROOT_PKG}.${serviceClass};
+    #set( $collectionName = $entity.tagValue("CollectionName", $fn.toLowerCase($entity.name) ) )
+    #if($entity.hasForeignKeys() )
+        #set( $uriPath = "${REST_API_ROOT}/${collectionName}" )
+    #end
+    #set( $uriPath = "//${collectionName}" )
+    #set( $dtoInstance = "$fn.uncapitalize($entity.name)DTO" )
+    #set( $ID_ARGS = $fn.argumentsList($entity.keyAttributes) )
+
+    #set($keyAttribNames = [])
+    #set($keyAttribWithPathParam = [])
+    #foreach( $attribute in $entity.keyAttributes )
+        #set( $_ = $keyAttribNames.add($attribute.name) )
+        #set( $_ = $keyAttribWithPathParam.add("@PathVariable ${attribute.type} ${attribute.name}") )
+    #end
+    #set($REST_PATH_FOR_ID  = "/" + $fn.joinWithPrefixSuffix(${keyAttribNames}, "/", "{", "}") )
+    #set($REST_PARAM_FOR_ID = $fn.join($keyAttribWithPathParam, ", ") )
+
+@RestController
+@RequestMapping("${uriPath}")
+public class ${controllerClass} {
+
+private static final Logger LOGGER = LoggerFactory.getLogger(${controllerClass}.class);
+
+private ${serviceClass} service;
+
+    public ${controllerClass}(${serviceClass} service) {
+        this.service = service;
+    }
+
+    @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE}, produces = {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> save(@RequestBody ${requestClass} request){
+        LOGGER.info("Iniciando criação de um novo $jpaEntityClass");
+
+        Set< String > validations = request.isValidOnStage(ValidOnCreation.class);
+
+        if(request == null){
+            return ResponseEntity.badRequest().body("Não há dados para serem cadastrados");
+        }
+
+        if (!validations.isEmpty()) {
+            return ResponseEntity.badRequest().body(validations);
+        }
+
+        $jpaEntityClass object = request.transform(
+        #foreach($attribute in ${entity.nonKeyAttributes}) #if($foreach.hasNext)
+        request.${attribute.getter}(),#else request.${attribute.getter}()  #end#end);
+        service.save(object);
+        return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+    }
+
+    @GetMapping(produces= {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> findAll() {
+        LOGGER.info("Buscando lista de $jpaEntityClass");
+        List<${jpaEntityClass}> list = service.findAll();
+        return ResponseEntity.ok().header("Custom-Header", "foo").body(list);
+    }
+
+    @GetMapping(value="/{id}", produces = {MediaType.APPLICATION_JSON_VALUE})
+        public ResponseEntity<?> findById(@PathVariable("id") Long id){
+        LOGGER.info("Buscando $jpaEntityClass por id: {}", id);
+        if(id == null){
+            return ResponseEntity.badRequest().body("id inválido");
+        }
+
+        Optional<${jpaEntityClass}> object = service.findById(id);
+        if (object.isPresent()) {
+            LOGGER.info("$entity.name encontrado com sucesso: {}");
+            return ResponseEntity.ok().header("Custom-header", "foo").body(object.get());
+        }else{
+            LOGGER.info("$entity.name não encontrado pelo id: {}", id);
+            return ResponseEntity.notFound().header("not-found-id", String.valueOf(id)).build();
+        }
+    }
+
+    #foreach($attribute in $entity.attributes)#if($attribute.isKeyElement())#set($keyGetter = $attribute.getter) #end   #end
+
+    @PutMapping(consumes = {MediaType.APPLICATION_JSON_VALUE}, produces= {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> update(@RequestBody ${requestClass} request) {
+        LOGGER.info("Iniciando atualização de $entity.name pelo id: {}", request.$keyGetter());
+
+        Set<String> validations = request.isValidOnStage(ValidOnUpdate.class);
+        if (!validations.isEmpty()) {
+            return ResponseEntity.badRequest().body(validations);
+        }
+
+        Optional<$jpaEntityClass> possivelObject = service.findById(request.$keyGetter());
+
+        $jpaEntityClass object = possivelObject.get();
+        object.transform(request);
+        LOGGER.info("$entity.name encontrado com sucesso (controller): {}", object.logString());
+        service.update(object);
+        LOGGER.info("$entity.name atualizado(a) com sucesso: {}", object.logString());
+        return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+
+    }
+
+
+    @DeleteMapping(value="/{id}", produces = {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> delete(@PathVariable("id") Long id) {
+        LOGGER.info("Iniciando deleção de $entity.name pelo id: {}", id);
+        Optional<${jpaEntityClass}> possivelObject = service.findById(id);
+        if (possivelObject.isPresent()) {
+            ${jpaEntityClass} object = possivelObject.get();
+            service.delete(object);
+            LOGGER.info("$entity.name deletado(a) com sucesso: {}", object.logString());
+            return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+        }else{
+            return ResponseEntity.notFound().header("not-found-id", String.valueOf(id)).build();
+        }
+    }
+
+}
+#end
+
+#macro(controllerFk$entity)
+
+package ${target.javaPackageFromFolder(${SRC})};
+
+#foreach( $import in $java.imports($entity.keyAttributes) )
+    import $import;
+#end
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+#url($entity)
+
+import ${ROOT_PKG}.${typeLink};
+import ${ROOT_PKG}.${typeLink}Service;
+
+import ${ROOT_PKG}.${jpaEntityClass};
+import ${ROOT_PKG}.${serviceClass};
+#set( $collectionName = $entity.tagValue("CollectionName", $fn.toLowerCase($entity.name) ) )
+#if($entity.hasForeignKeys() )
+    #set( $uriPath = "${REST_API_ROOT}/${collectionName}" )
+#end
+#set( $uriPath = "${REST_API_ROOT}/${collectionName}" )
+#set( $dtoInstance = "$fn.uncapitalize($entity.name)DTO" )
+#set( $ID_ARGS = $fn.argumentsList($entity.keyAttributes) )
+
+#set($keyAttribNames = [])
+#set($keyAttribWithPathParam = [])
+#foreach( $attribute in $entity.keyAttributes )
+    #set( $_ = $keyAttribNames.add($attribute.name) )
+    #set( $_ = $keyAttribWithPathParam.add("@PathVariable ${attribute.type} ${attribute.name}") )
+#end
+#set($REST_PATH_FOR_ID  = "/" + $fn.joinWithPrefixSuffix(${keyAttribNames}, "/", "{", "}") )
+#set($REST_PARAM_FOR_ID = $fn.join($keyAttribWithPathParam, ", ") )
+
+@RestController
+@RequestMapping("//$nameLink")
+public class ${controllerClass} {
+
+    private ${serviceClass} service;
+    private ${typeLink}Service ${nameLink}Service;
+    private static final Logger LOGGER = LoggerFactory.getLogger(${controllerClass}.class);
+
+    public ${controllerClass}(${serviceClass} service, ${typeLink}Service ${nameLink}Service) {
+        this.service = service;
+        this.${nameLink}Service = ${nameLink}Service;
+    }
+
+    @PostMapping(value="/{id_${nameLink}}/$entity.name", consumes = {MediaType.APPLICATION_JSON_VALUE}, produces = {MediaType.APPLICATION_JSON_VALUE})
+        public ResponseEntity<?> save(@PathVariable("id_${nameLink}") Long id${typeLink}, @RequestBody ${requestClass} request){
+        LOGGER.info("Iniciando criação de um novo $jpaEntityClass para ${typeLink} com ID: {}", id${typeLink});
+        if (id${typeLink} == null){
+            return ResponseEntity.badRequest().body("id${typeLink} está inválido");
+        }
+
+        Set< String > validations = request.isValidOnStage(ValidOnCreation.class);
+        if(request == null){
+            return ResponseEntity.badRequest().body("Não há dados para serem cadastrados");
+        }
+        if (!validations.isEmpty()) {
+            return ResponseEntity.badRequest().body(validations);
+        }
+
+        Optional<${typeLink}> possivel${typeLink} = this.${nameLink}Service.findById(id${typeLink});
+        if(possivel${typeLink}.isPresent()){
+            ${typeLink} ${nameLink} = possivel${typeLink}.get();
+            $jpaEntityClass object = request.transform(${nameLink});
+            service.save(object);
+            LOGGER.info("$jpaEntityClass criado para ${typeLink} com sucesso!");
+            return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+        }
+        else{
+            LOGGER.info("${nameLink} não encontrado com ID: {}", id${typeLink});
+            return ResponseEntity.notFound().header("not-found-id", String.valueOf(id${typeLink})).build();
+        }
+
+    }
+
+    @GetMapping(value="/{id_${nameLink}}/$entity.name", produces= {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> findAll(@PathVariable("id_${nameLink}") Long id${typeLink}) {
+        LOGGER.info("Buscando lista de $jpaEntityClass");
+
+        if (id${typeLink} == null){
+            return ResponseEntity.badRequest().body("id${typeLink} está inválido");
+        }
+
+        List<${jpaEntityClass}> list = service.findAll();
+        LOGGER.info("$jpaEntityClass encontrados: {}", list.size());
+        return ResponseEntity.ok().header("Custom-Header", "foo").body(list);
+    }
+
+    @GetMapping(value="/{id_${nameLink}}/${entity.name}/{id}", produces = {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> findById(@PathVariable("id_${nameLink}") Long id${typeLink}, @PathVariable("id") Long id){
+        LOGGER.info("Buscando $jpaEntityClass por id: {}", id);
+
+        if (id${typeLink} == null){
+            return ResponseEntity.badRequest().body("id${typeLink} está inválido");
+        }
+
+        if(id == null){
+            return ResponseEntity.badRequest().body("id inválido");
+        }
+
+        Optional<${jpaEntityClass}> object = service.findById(id);
+        if (object.isPresent()) {
+            LOGGER.info("$entity.name encontrado com sucesso: {}");
+            return ResponseEntity.ok().header("Custom-header", "foo").body(object.get());
+        }else{
+            LOGGER.info("$entity.name não encontrado pelo id: {}", id);
+            return ResponseEntity.notFound().header("not-found-id", String.valueOf(id)).build();
+        }
+    }
+#foreach($attribute in $entity.attributes) #if($attribute.isKeyElement()) #set($getName = "${attribute.getter}()" ) #end #end
+
+    @PutMapping(value="/{id_${nameLink}}/${entity.name}", consumes = {MediaType.APPLICATION_JSON_VALUE}, produces= {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> update(@PathVariable("id_${nameLink}") Long id${typeLink}, @RequestBody ${requestClass} request) {
+        LOGGER.info("Iniciando atualização de $entity.name pelo id: {}", request.${getName});
+
+        Set< String > validations = request.isValidOnStage(ValidOnUpdate.class);
+        if (!validations.isEmpty()) {
+            return ResponseEntity.badRequest().body(validations);
+        }
+
+        Optional<${typeLink}> possivel${typeLink} = this.${nameLink}Service.findById(id${typeLink});
+        Optional<$jpaEntityClass> possivelObject = service.findById(request.${getName});
+        if(possivelObject.isPresent()){
+            $jpaEntityClass object = request.transform(possivel${typeLink}.get());
+            service.update(object);
+            LOGGER.info("$entity.name atualizado(a) com sucesso: {}", object.logString());
+            return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+        } else{
+            LOGGER.info("$entity.name não encontrado(a) pelo id: {}", request.${getName});
+            return ResponseEntity.notFound().header("not-found-id", String.valueOf(request.${getName})).build();
+        }
+    }
+
+
+    @DeleteMapping(value="/{id_${nameLink}}/${entity.name}/{id}", produces = {MediaType.APPLICATION_JSON_VALUE})
+    public ResponseEntity<?> delete(@PathVariable("id_${nameLink}") Long id${typeLink}, @PathVariable("id") Long id) {
+        LOGGER.info("Iniciando deleção de $entity.name pelo id: {}", id);
+        Optional<${jpaEntityClass}> possivelObject = service.findById(id);
+        ${jpaEntityClass} object = possivelObject.get();
+        service.delete(object);
+        LOGGER.info("$entity.name deletado(a) com sucesso: {}", object.logString());
+        return ResponseEntity.ok().header("Custom-Header", "foo").body(object);
+    }
+
+}
+
+
+#end

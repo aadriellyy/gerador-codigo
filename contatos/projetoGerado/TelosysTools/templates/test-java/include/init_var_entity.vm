@@ -1,0 +1,59 @@
+
+#set($jpaEntityClass    = "${entity.name}" )
+#if ( $entity.hasCompositePrimaryKey() )
+    #set($jpaEntityIdClass  = "${entity.name}Id" )
+#else
+    #set($jpaEntityIdClass  = $entity.keyAttribute.wrapperType )
+#end
+#set($daoClass        = "${entity.name}Dao" )
+#set($serviceClass    = "${entity.name}Service" )
+#set($controllerClass = "${entity.name}RestController" )
+#set($requestClass = "${entity.name}Request" )
+#set($dtoClass = "${entity.name}DTO")
+#set($nameEntidade = "null")
+#set($anotacaoJpa = "null")
+#set($mapa = [])
+#set($attributeEqualsHash = [])
+
+#macro(mapeiaAtributosEqualsHash$entity)
+    #foreach($attribute in $entity.attributes)
+    #if($attribute.isFK() == false)
+        #set($ignored = $attributeEqualsHash.add($attribute))
+    #end #end
+#end
+
+##verifica se a classe é abstrata
+#macro(abstract$entity)
+    #if( $entity.isAbstract() )
+        #set($abstract = true)
+    #else
+        #set($abstract = false)
+    #end
+#end
+
+##verificacao da volta dos relacionamentos
+#macro(relacionamento$name) ##recebe uma entidade
+    #set($temp = $name)
+    #foreach ($entity in $model.allEntities) ##percorre todas as entidades presentes no modelo
+        #if($entity.hasLinks()) ##caso a entidade tenha links
+            #foreach( $link in $entity.links ) ##percorre todos os atrubutos presentes no modelo
+                #if ($temp.name == $link.formattedFieldType(10)) ##se a entidade atual for um atributo da entidade percorrida
+                    #set($ignored = $mapa.add($entity.name))
+                    #set($ignored = $mapa.add($link.cardinality))
+                    #set($mappedBy = $link.fieldName)
+                #end
+            #end
+        #end
+    #end
+#end
+
+#macro( url $entity )
+    #if( $entity.hasLinks() )
+        #foreach($link in $entity.links)
+            #set($nameLink = $link.fieldName)
+            #set($typeLink = $link.fieldType)
+        #end
+    #end
+#end
+
+

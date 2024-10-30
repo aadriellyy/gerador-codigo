@@ -1,0 +1,12 @@
+@DbTable(endereco)
+@DbSchema(public)
+Endereco {
+  // attributes
+  idEndereco : long { @Id @DbName(id_endereco) @DbType(int8) @NotNull @NotEmpty };
+  cep : string { @DbName(cep) @DbType("varchar(10)") @NotNull @NotEmpty @Size(10) @MaxLen(10) @Unique};
+  logradouro : string { @DbName(logradouro) @DbType("varchar(90)") @NotNull @NotEmpty @Size(90) @MaxLen(90) @Unique};
+  complemento : string { @DbName(complemento) @DbType("varchar(30)") @NotNull @NotEmpty @Size(30) @MaxLen(30) @Unique };
+  fkidPessoa : long { @DbName(fkid_pessoa) @DbType(int8) @NotNull @NotEmpty @FK(endereco_fkid_pessoa_fkey, PessoaFisica.idPessoa) @Unique };
+  // links
+  pessoafisica : PessoaFisica { @LinkByFK(endereco_fkid_pessoa_fkey) };
+}

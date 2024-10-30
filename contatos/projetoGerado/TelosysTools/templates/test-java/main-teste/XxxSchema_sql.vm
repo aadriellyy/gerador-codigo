@@ -1,0 +1,55 @@
+#if ( $entity.isJoinEntity() ) #cancel("No JPA class for join entity") #end #checkId($entity) #parse("include/init_var_entity.vm") #parse("include/java_header.vm")
+
+#foreach($entity in $model.allEntities)
+
+CREATE TABLE $entity.name.toUpperCase() ( #foreach($attribute in $entity.attributes)  #sqlAttribute($attribute) #if($foreach.last)
+
+    $nameSql       $tipoSql $especificacaoSql
+);
+
+#else
+
+    $nameSql       $tipoSql $especificacaoSql,
+
+#end #end #end
+
+
+#foreach($entity in $model.allEntities) #uniqueList($entity) #if($listUnique.size() > 0)
+
+CREATE UNIQUE INDEX ON $entity.name.toUpperCase() (#foreach($unique in $listUnique)#if($foreach.last)$unique#else$unique, #end#end);
+#end #end
+
+#foreach($entity in $model.allEntities) #foreach($attribute in $entity.attributes) #if($attribute.isFK())
+
+ALTER TABLE $entity.name.toUpperCase() ADD FOREIGN KEY (${attribute.databaseName.toUpperCase()}) REFERENCES ${attribute.referencedEntityName.toUpperCase()} #if($attribute.name.contains('id')) (ID_${attribute.referencedEntityName.toUpperCase()}) #end
+#end #end #end
+
+
+#macro(sqlAttribute$attribute)
+    #set($nameSql = $attribute.databaseName.toUpperCase())
+    #set($tipoSql = "")
+    #set($especificacaoSql = "")
+    #if($attribute.isKeyElement())
+        #set($tipoSql = 'BIGINT')
+    #elseif($attribute.isIntegerType() || $attribute.type == 'long')
+        #set($tipoSql = 'BIGINT')
+    #else
+        #set($tipoSql = ${attribute.databaseType})
+    #end
+    #if($attribute.isNotNull())
+        #set($especificacaoSql = $especificacaoSql + " NOT NULL")
+    #end
+    #if($attribute.isKeyElement())
+        #set($especificacaoSql = $especificacaoSql + " PRIMARY KEY")
+    #end
+#end
+
+#macro(uniqueList$entity)
+    #set($listUnique = [])
+    #foreach($attribute in $entity.attributes)
+        #if($attribute.isUnique())
+            #set($ignored = $listUnique.add($attribute.name.toUpperCase()))
+        #end
+    #end
+#end
+

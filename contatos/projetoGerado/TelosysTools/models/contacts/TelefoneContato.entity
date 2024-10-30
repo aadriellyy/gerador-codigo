@@ -1,0 +1,10 @@
+@DbTable(telefone_contato)
+@DbSchema(public)
+TelefoneContato {
+  // attributes
+  idTelefone : long { @Id @DbName(id_telefone) @DbType(int8) @NotNull @NotEmpty };
+  nrTelefone : string { @DbName(nr_telefone) @DbType("varchar(15)") @NotNull @NotEmpty @Size(15) @MaxLen(15) @Unique };
+  fkidPessoa : long { @DbName(fkid_pessoa) @DbType(int8) @NotNull @NotEmpty @FK(telefone_contato_fkid_pessoa_fkey, PessoaFisica.idPessoa) @Unique };
+  // links
+  pessoafisica : PessoaFisica { @LinkByFK(telefone_contato_fkid_pessoa_fkey) };
+}

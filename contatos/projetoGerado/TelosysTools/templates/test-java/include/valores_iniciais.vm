@@ -1,0 +1,85 @@
+#macro(definirValores$entity)
+    #set ($valores = [])
+    #foreach($attribute in $entity.attributes)
+        #if($attribute.hasInitialValue())
+            #set($ignored = $valores.add($attribute.initialValue))
+        #elseif($attribute.isDateType())
+            #set($ignored = $valores.add("2010, 10, 10"))
+        #elseif($attribute.isNumberType() )
+            #if($attribute.isKeyElement())
+                #set($keyAttribute = $attribute.name)
+                #set($ignored = $valores.add(1))
+            #else
+                #set($ignored = $valores.add(2))
+            #end
+        #elseif($attribute.isStringType())
+            #set($ignored = $valores.add('"texto a ser definido"'))
+        #else
+            #set($ignored = $valores.add('"x"'))
+        #end
+    #end
+#end
+
+##recebo o tipo da variavel link
+#macro(referencia$link)
+    #set($nomeAtributos = [])
+    #set($tipoAtributos = [])
+    #set ($valoresREF = [])
+
+    #foreach($entity in $model.allEntities) #if($entity.name == $link.fieldType)
+
+        #foreach($attribute in $entity.nonKeyAttributes)
+            #set($ignored = $tipoAtributos.add($attribute.type))
+            #set($ignored = $nomeAtributos.add($attribute.name))
+            #if($attribute.hasInitialValue())
+                #set($ignored = $valoresREF.add($attribute.initialValue))
+            #elseif($attribute.isDateType())
+                #set($ignored = $valoresREF.add("2010, 10, 10"))
+            #elseif($attribute.isNumberType() )
+                #set($ignored = $valoresREF.add(2))
+            #elseif($attribute.isStringType() )
+                #set($ignored = $valoresREF.add('"texto a ser definido"'))
+            #else
+                #set($ignored = $valoresREF.add('"x"'))
+            #end
+        #end
+
+#end #end #end
+
+
+#macro(defineReferencia $entity)
+
+    #if($entity.hasLinks()) #foreach($link in $entity.links)
+    #referencia($link)
+    #foreach($nome in $nomeAtributos) #set($index = $foreach.index) #if($tipoAtributos.get($index) == 'long')
+
+        Long $nome = (long) $valoresREF.get($index);
+
+        #elseif(($tipoAtributos.get($index) == 'LocalDate'))
+
+        LocalDate $nome = LocalDate.of($valoresREF.get($index));
+
+        #else
+
+        $tipoAtributos.get($index) $nome = $valoresREF.get($index);
+
+        #end #end
+
+        $link.fieldType obj$link.fieldType = new ${link.fieldType}(#foreach($nome in $nomeAtributos)#if($foreach.last) $nome #else $nome, #end #end);
+
+    #end #end
+
+#end
+
+#macro(atributosEntityLink$entity)
+    #set($atributos = [])
+    #foreach($attribute in $entity.attributes) #if($attribute.isFK()) #else
+        #set($ignored = $atributos.add($attribute.name))
+    #end
+    #end
+    #foreach($link in $entity.links)
+        #set($var = 'obj'+${link.fieldType})
+        #set($ignored = $atributos.add($var))
+    #end
+    #end
+
